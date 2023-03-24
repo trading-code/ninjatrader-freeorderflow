@@ -24,7 +24,7 @@ using NinjaTrader.Core.FloatingPoint;
 using NinjaTrader.NinjaScript.Indicators.FreeOrderFlow;
 #endregion
 
-//This namespace holds Drawing tools in this folder and is required. Do not change it. 
+//This namespace holds Drawing tools in this folder and is required. Do not change it.
 namespace NinjaTrader.NinjaScript.DrawingTools
 {
 	public class FofRangeVolumeProfile : Rectangle
@@ -56,13 +56,13 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 		private ChartControl ChartControl;
 		private ChartBars ChartBars { get { return AttachedTo.ChartObject as ChartBars; } }
 		private bool isLoading;
-		
+
 		#region OnStateChange
 		protected override void OnStateChange()
 		{
 			base.OnStateChange();
 			if (State == State.SetDefaults)
-			{				
+			{
 				Name						= "Volume Profile (Free Order Flow)";
 				Description					= @"Free Order Flow Range Volume Profile";
 				AreaOpacity					= 5;
@@ -87,12 +87,12 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 			}
 			else if (State == State.Configure)
 			{
-				ZOrderType = DrawingToolZOrder.AlwaysDrawnLast;
+				ZOrderType = DrawingToolZOrder.AlwaysDrawnFirst;
 				ZOrder = -1;
 			}
 		}
 		#endregion
-		
+
 		#region Calculation
 		private void CaculateVolumeProfile(ChartControl chartControl, ChartScale chartScale)
 		{
@@ -102,15 +102,13 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				StartBar = StartBar, EndBar = EndBar
 			};
 			var bars = (AttachedTo.ChartObject as ChartBars).Bars;
-			
+
 			if (BarsRequest != null)
 			{
 				BarsRequest = null;
 			}
-			
-			var startTime = StartBar > EndBar ? EndAnchor.Time : StartAnchor.Time;
-			var endTime = StartBar > EndBar ? StartAnchor.Time : EndAnchor.Time;
-			BarsRequest = new BarsRequest(chartBars.Instrument, startTime, endTime);
+
+			BarsRequest = new BarsRequest(chartBars.Instrument, StartAnchor.Time, EndAnchor.Time);
 			BarsRequest.BarsPeriod = new BarsPeriod() { BarsPeriodType = BarsPeriodType.Tick, Value = 1 };
 			BarsRequest.Request((request, errorCode, errorMessage) =>
 			{
@@ -125,17 +123,17 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				for (int i = 0; i < request.Bars.Count; i++)
 				{
 					if(
-						request.Bars.BarsSeries.GetTime(i) < startTime ||
-						request.Bars.BarsSeries.GetTime(i) > endTime
+						request.Bars.BarsSeries.GetTime(i) < StartAnchor.Time ||
+						request.Bars.BarsSeries.GetTime(i) > EndAnchor.Time
 					) continue;
 					double ask = request.Bars.BarsSeries.GetAsk(i);
 					double bid = request.Bars.BarsSeries.GetBid(i);
 					double close = request.Bars.BarsSeries.GetClose(i);
 					long volume = request.Bars.BarsSeries.GetVolume(i);
-					
+
 					long buyVolume = (close >= ask) ? volume : 0;
 					long sellVolume = (close <= bid) ? volume : 0;
-					
+
 					var row = profile.AddOrUpdate(
 						close,
 						(double key) => new VolumeProfileRow() {
@@ -162,7 +160,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				isLoading = false;
 			});
 		}
-		
+
 		private void CalcAnchorPrice() {
 			MaxPrice = ChartBars.Bars.GetHigh(StartBar);
 			MinPrice = ChartBars.Bars.GetLow(StartBar);
@@ -172,15 +170,15 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				MinPrice = Math.Min(ChartBars.Bars.GetLow(i), MinPrice);
 			}
 
+			EndAnchor.SlotIndex = EndBar;
 			StartAnchor.Price = MaxPrice;
 			EndAnchor.Price = MinPrice;
 		}
 		#endregion
-		
+
 		#region Rendering
 		public override void OnRender(ChartControl chartControl, ChartScale chartScale)
 		{
-			RenderTarget.AntialiasMode = SharpDX.Direct2D1.AntialiasMode.Aliased;
 			ChartControl = chartControl;
 
 			if(StartAnchor.SlotIndex < 0 || EndAnchor.SlotIndex < 0) return;
@@ -189,7 +187,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				if(StartBar != (int) StartAnchor.SlotIndex || EndBar != (int) EndAnchor.SlotIndex) {
 					StartBar = (int) Math.Min(StartAnchor.SlotIndex, EndAnchor.SlotIndex);
 					EndBar = (int) Math.Max(StartAnchor.SlotIndex, EndAnchor.SlotIndex);
-					if(EndBar >= ChartBars.Count) EndBar = ChartBars.Count - 1;
+					if(EndBar >= ChartBars.Count - 1) EndBar = ChartBars.Count - 1;
 					CalcAnchorPrice();
 					CaculateVolumeProfile(chartControl, chartScale);
 				}
@@ -213,7 +211,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 					RenderDeltaProfile(chartScale, profile);
 				}
 			}
-			else
+
 			if(isLoading)
 			{
 				var shapeRect = GetAnchorsRect(chartControl, chartScale);
@@ -237,7 +235,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				textDxBrush.Dispose();
 			}
 		}
-		
+
 		public override void OnRenderTargetChanged()
 		{
 			if(volumeBrushDX != null) volumeBrushDX.Dispose();
@@ -251,16 +249,16 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				ValueAreaStroke.RenderTarget = RenderTarget;
 			}
 		}
-		
+
 		private Rect GetAnchorsRect(ChartControl chartControl, ChartScale chartScale)
 		{
 			if (StartAnchor == null || EndAnchor == null)
 				return new Rect();
-			
+
 			ChartPanel chartPanel	= chartControl.ChartPanels[chartScale.PanelIndex];
 			Point startPoint		= StartAnchor.GetPoint(chartControl, chartPanel, chartScale);
 			Point endPoint 			= EndAnchor.GetPoint(chartControl, chartPanel, chartScale);
-			
+
 			//rect doesnt handle negative width/height so we need to determine and wind it up ourselves
 			// make sure to always use smallest left/top anchor for start
 			double left 	= Math.Min(endPoint.X, startPoint.X);
@@ -290,7 +288,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				RenderTarget.FillRectangle(rect, volumeBrushDX);
 			}
 		}
-		
+
 		private void RenderPoc(ChartScale chartScale, VolumeProfileData profile)
 		{
 			var volumeProfileRender = new FofVolumeProfileRender(ChartControl, chartScale, ChartBars);
@@ -309,7 +307,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				PocStroke.StrokeStyle
 			);
 		}
-		
+
 		private void RenderValueArea(ChartScale chartScale, VolumeProfileData profile)
 		{
 			var volumeProfileRender = new FofVolumeProfileRender(ChartControl, chartScale, ChartBars);
@@ -397,7 +395,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 		[NinjaScriptProperty]
 		[Display(Name = "Resolution Mode", Description="Calculate profile from region",  Order = 2, GroupName = "Setup")]
 		public FofVolumeProfileResolution ResolutionMode { get; set; }
-		
+
 		[NinjaScriptProperty]
 		[Display(Name = "Resolution", Description="Calculate profile from region",  Order = 3, GroupName = "Setup")]
 		public int Resolution { get; set; }
@@ -408,7 +406,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 
 		[Display(Name = "Profile width (%)", Description="Width of bars relative to range",  Order = 1, GroupName = "Visual")]
 		public int Width { get; set; }
-		
+
 		[Range(1, 100)]
 		[Display(Name = "Profile opacity (%)", Description="Opacity of bars out value area",  Order = 2, GroupName = "Visual")]
 		public int Opacity { get; set; }
@@ -422,7 +420,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 
 		[Display(Name = "Show Value Area", Description="Show value area high and low lines",  Order = 6, GroupName = "Setup")]
 		public bool ShowValueArea { get; set; }
-		
+
 		[XmlIgnore]
 		[Display(Name = "Color for profile", Order = 10, GroupName = "Visual")]
 		public Brush VolumeBrush { get; set; }
