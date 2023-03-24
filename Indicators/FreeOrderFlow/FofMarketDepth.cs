@@ -29,6 +29,8 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 	{
 		private ConcurrentDictionary<double, long> AskRows;
 		private ConcurrentDictionary<double, long> BidRows;
+		private SharpDX.Direct2D1.Brush askDxBrush;
+		private SharpDX.Direct2D1.Brush bidDxBrush;
 
 		protected override void OnStateChange()
 		{
@@ -42,7 +44,6 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 				DrawOnPricePanel			= true;
 				AskColor					= Brushes.Plum;
 				BidColor					= Brushes.LightSkyBlue;
-				BarSpacing					= 25;
 				BarOpacity					= 75;
 				Width						= 50;
 			}
@@ -99,38 +100,38 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 			long maxVolume = Math.Max(maxAskVolume, maxBidVolume);
 			if(maxVolume == 0) return;
 
-			var barSpacing = BarSpacing / 100f;
-			var askBrush = AskColor.ToDxBrush(RenderTarget);
-			var bidBrush = BidColor.ToDxBrush(RenderTarget);
-			askBrush.Opacity = BarOpacity / 100f;
-			bidBrush.Opacity = BarOpacity / 100f;
-
 			foreach (KeyValuePair<double, long> row in AskRows)
 			{
 				if(row.Value == 0) continue;
 				SharpDX.RectangleF askBarRect = GetBarRect(chartScale, row.Key, row.Value, maxVolume);
-				RenderTarget.FillRectangle(askBarRect, askBrush);
+				RenderTarget.FillRectangle(askBarRect, askDxBrush);
 			}
 
 			foreach (KeyValuePair<double, long> row in BidRows)
 			{
 				if(row.Value == 0) continue;
 				SharpDX.RectangleF bidBarRect = GetBarRect(chartScale, row.Key, row.Value, maxVolume);
-				RenderTarget.FillRectangle(bidBarRect, bidBrush);
+				RenderTarget.FillRectangle(bidBarRect, bidDxBrush);
 			}
+		}
 
-			askBrush.Dispose();
-			bidBrush.Dispose();
+		public override void OnRenderTargetChanged()
+		{
+			if(askDxBrush != null) askDxBrush.Dispose();
+			if(bidDxBrush != null) bidDxBrush.Dispose();
+			if(RenderTarget != null)
+			{
+				askDxBrush = AskColor.ToDxBrush(RenderTarget);
+				bidDxBrush = BidColor.ToDxBrush(RenderTarget);
+				askDxBrush.Opacity = BarOpacity / 100f;
+				bidDxBrush.Opacity = BarOpacity / 100f;
+			}
 		}
 
 		private SharpDX.RectangleF GetBarRect(ChartScale chartScale, double price, long volume, long maxVolume) {
-			var barSpacing = BarSpacing / 100f;
-			int barDistance = (int)Math.Max(1, chartScale.GetPixelsForDistance(TickSize - (TickSize * barSpacing))) / 2; //pixels
-			float y = (float) chartScale.GetYByValueWpf(price + TickSize);
-			float tickHeight = (float) chartScale.GetYByValueWpf(price) - y;
+			float ypos = (float) chartScale.GetYByValue(price + TickSize);
+			float barHeight = (float) chartScale.GetYByValue(price) - ypos;
 			float barWidth = Width * volume / (float) maxVolume;
-			float barHeight = (float) Math.Ceiling(tickHeight * (1 - barSpacing));
-			float ypos = y + barDistance;
 			float xpos = ChartControl.CanvasRight - barWidth;
 			return new SharpDX.RectangleF(xpos, ypos, barWidth, barHeight);
 		}
@@ -160,10 +161,6 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 
 		[Display(Name="Width", Description="Histogram width.", Order=3, GroupName="Visual")]
 		public int Width { get; set; }
-
-		[Range(0, 50)]
-		[Display(Name="Bar Spacing %", Description="Histogram bar spacing.", Order=4, GroupName="Visual")]
-		public int BarSpacing { get; set; }
 
 		[Range(10, 100)]
 		[Display(Name="Bar Opacity %", Description="Histogram bar opacity.", Order=5, GroupName="Visual")]
