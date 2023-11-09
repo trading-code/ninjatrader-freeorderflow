@@ -19,6 +19,8 @@ using NinjaTrader.Data;
 using NinjaTrader.NinjaScript;
 using NinjaTrader.Core.FloatingPoint;
 using NinjaTrader.NinjaScript.DrawingTools;
+using SharpDX.DirectWrite;
+using NinjaTrader.Core;
 #endregion
 
 //This namespace holds Indicators in this folder and is required. Do not change it.
@@ -40,6 +42,8 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 				DisplayInDataBox							= true;
 				DrawOnPricePanel							= true;
 				ScaleJustification							= NinjaTrader.Gui.Chart.ScaleJustification.Right;
+				double TextLabelWidth 				= 244;
+				bool DrawTextLabel = false;
 				//Disable this property if your indicator requires custom values that cumulate with each new market data event.
 				//See Help Guide for additional information.
 				IsSuspendedWhileInactive					= true;
@@ -74,6 +78,38 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 			// plot VWAP value
 			Values[0][0] = cumPV[0] / (cumVol[0] == 0 ? 1 : cumVol[0]);
 		}
+		
+		void DrawText(int index, string text, TextFormat textFormat, ChartControl chartControl, ChartScale chartScale) {
+			
+			
+			Plot plot = Plots[index];
+			double x = chartControl.GetXByBarIndex(ChartBars, ChartBars.ToIndex) -TextLabelWidth;
+			double y = chartScale.GetYByValue(Values[index].GetValueAt(ChartBars.ToIndex-1));
+			Point point = new Point(x, y);
+			TextLayout textLayout = new TextLayout(Globals.DirectWriteFactory, text, textFormat, ChartPanel.W, textFormat.FontSize);
+			RenderTarget.DrawTextLayout(point.ToVector2(), textLayout, plot.BrushDX);
+		}
+		
+		protected override void OnRender(ChartControl chartControl, ChartScale chartScale)
+		{
+			base.OnRender(chartControl, chartScale);
+			
+			TextFormat	textFormat	= chartControl.Properties.LabelFont.ToDirectWriteTextFormat();
+			
+			if (DrawTextLabel)
+				DrawText(0, "VWAP", textFormat, chartControl, chartScale);
+
+			textFormat.Dispose();
+		}
+		
+		#region Properties
+		[Display(ResourceType = typeof(Custom.Resource), Name = "TextLabelWidth", GroupName = "NinjaScriptParameters", Order = 1)]
+		public double TextLabelWidth
+		{ get; set; }
+		[Display(ResourceType = typeof(Custom.Resource), Name = "DrawTextLabel", GroupName = "NinjaScriptParameters", Order = 2)]
+		public bool DrawTextLabel
+		{ get; set; }
+		#endregion
 	}
 }
 
