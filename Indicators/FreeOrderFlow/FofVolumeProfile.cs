@@ -49,6 +49,7 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 				ResolutionMode				= FofVolumeProfileResolution.Tick;
 				Resolution					= 1;
 				ValueArea					= 70;
+				DisplayTotal                = true;
 
 				// Visual
 				Width						= 60;
@@ -265,6 +266,23 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 			}
 		}
 
+		private void RenderTotalVolume(ChartScale chartScale, VolumeProfileData profile, bool inWindow = true)
+		{
+			var volumeProfileRender = new FofVolumeProfileRender(ChartControl, chartScale, ChartBars);
+			var textFormat = ChartControl.Properties.LabelFont.ToDirectWriteTextFormat();
+			var textLayout = new SharpDX.DirectWrite.TextLayout(
+				Core.Globals.DirectWriteFactory,
+				string.Format("∑ {0}", profile.TotalVolume),
+				textFormat,
+				300, 30
+			);
+			var minPrice = profile.Keys.Min();
+			var textDxBrush = ChartControl.Properties.ChartText.ToDxBrush(RenderTarget);
+			var barRect = volumeProfileRender.GetBarRect(profile, minPrice, 0, false, inWindow);
+			RenderTarget.DrawTextLayout(new SharpDX.Vector2(barRect.Left, barRect.Top), textLayout, textDxBrush);
+			textDxBrush.Dispose();
+		}
+
 		protected override void OnRender(ChartControl chartControl, ChartScale chartScale)
 		{
 			RenderTarget.AntialiasMode = SharpDX.Direct2D1.AntialiasMode.Aliased;
@@ -289,6 +307,9 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 				if(DisplayMode == FofVolumeProfileMode.Delta)
 				{
 					RenderDeltaProfile(chartScale, profile);
+				}
+				if(DisplayTotal) {
+					RenderTotalVolume(chartScale, profile);
 				}
 			}
 		}
@@ -329,6 +350,9 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 		[Display(Name = "Value Area (%)", Description="Value area percentage",  Order = 7, GroupName = "Setup")]
 		public int ValueArea { get; set; }
 
+		[Display(Name = "Display Total Volume", Order = 8, GroupName = "Setup")]
+		public bool DisplayTotal { get; set; }
+		
 		// Visual
 		[Display(Name = "Profile width (%)", Description="Width of bars relative to range",  Order = 1, GroupName = "Visual")]
 		public int Width { get; set; }
