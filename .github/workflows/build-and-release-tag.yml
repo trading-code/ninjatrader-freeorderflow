@@ -1,0 +1,13 @@
+name: Build and Release version tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release-tag:
+    uses: ./.github/workflows/build-and-release.yml
+    secrets: inherit
+    with:
+      build-configuration: Release

@@ -1,0 +1,16 @@
+name: Build and Release Nightly
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    uses: ./.github/workflows/build-and-release.yml
+    secrets: inherit
+    with:
+      build-configuration: Release
+      prerelease: true
+      tagname: nightly
+      release-name: Nightly build

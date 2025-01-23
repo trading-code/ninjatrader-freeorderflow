@@ -1,0 +1,56 @@
+name: Build and Release
+
+on:
+  workflow_call:
+    inputs:
+      build-configuration:
+        required: true
+        type: string
+      tagname:
+        required: false
+        type: string
+      release-name:
+        required: false
+        type: string
+      prerelease:
+        required: false
+        type: boolean
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Setup MSBuild
+        uses: actions/setup-dotnet@v1
+
+      - name: Install deps
+        run: dotnet restore FreeOrderFlow.sln
+
+      - name: Build
+        run: dotnet build -c ${{ inputs.build-configuration }} FreeOrderFlow.sln
+
+      - name: Copy from Debug to publish folder
+        if: inputs.build-configuration == 'Debug'
+        run: |
+          cp bin/Debug/FreeOrderFlow.dll .\publish
+
+      - name: Copy from Release to publish folder
+        if: inputs.build-configuration != 'Debug'
+        run: |
+          cp bin/Release/FreeOrderFlow.dll .\publish
+
+      - name: Create Archive
+        run: Compress-Archive -Path .\publish\* -DestinationPath FreeOrderFlow-NT.zip -Force
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.GH_RELEASE_TOKEN }}
+          files: FreeOrderFlow-NT.zip
+          tag_name: ${{ inputs.tagname }}
+          name: ${{ inputs.release-name }}
+          prerelease: ${{ inputs.prerelease }}
