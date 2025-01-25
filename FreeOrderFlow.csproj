@@ -44,15 +44,15 @@
     <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.ComponentModel.DataAnnotations" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Web.Extensions" />
-    <Reference Include="System.Xaml" />
-    <Reference Include="System.Xml" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System"></Reference>
+    <Reference Include="System.ComponentModel.DataAnnotations"></Reference>
+    <Reference Include="System.Core"></Reference>
+    <Reference Include="System.Net.Http"></Reference>
+    <Reference Include="System.Web.Extensions"></Reference>
+    <Reference Include="System.Xaml"></Reference>
+    <Reference Include="System.Xml"></Reference>
+    <Reference Include="System.Xml.Linq"></Reference>
+    <Reference Include="Microsoft.CSharp"></Reference>
     <Reference Include="InfragisticsWPF4.DataPresenter.v15.1">
       <HintPath>deps\InfragisticsWPF4.DataPresenter.v15.1.dll</HintPath>
     </Reference>
@@ -91,11 +91,12 @@
     </Reference>
   </ItemGroup>
     <ItemGroup>
-	    <Compile Include="DrawingTools\FreeOrderFlow\FofAnchoredVwap.cs" />
-		<Compile Include="DrawingTools\FreeOrderFlow\FofRangeVolumeProfile.cs" />
-	    <Compile Include="Indicators\FreeOrderFlow\FofCumulativeDelta.cs" />
-		<Compile Include="Indicators\FreeOrderFlow\FofMarketDepth.cs" />
-		<Compile Include="Indicators\FreeOrderFlow\FofVolumeProfile.cs" />
-		<Compile Include="Indicators\FreeOrderFlow\FofVWAP.cs" />
+  	  <Compile Include="DrawingTools\FreeOrderFlow\FofAnchoredVwap.cs" />
+  		<Compile Include="DrawingTools\FreeOrderFlow\FofRangeVolumeProfile.cs" />
+  	  <Compile Include="Indicators\FreeOrderFlow\FofCumulativeDelta.cs" />
+  		<Compile Include="Indicators\FreeOrderFlow\FofMarketDepth.cs" />
+  		<Compile Include="Indicators\FreeOrderFlow\FofVolumeProfile.cs" />
+  		<Compile Include="Indicators\FreeOrderFlow\FofVWAP.cs" />
+  		<Compile Include="InvestiSoft\FofVolumeProfile.cs" />
     </ItemGroup>
 </Project>

@@ -1,27 +1,17 @@
 #region Using declarations
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Controls;
 using System.Xml.Serialization;
 using Brush = System.Windows.Media.Brush;
-using NinjaTrader.Cbi;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.Chart;
-using NinjaTrader.Gui.SuperDom;
-using NinjaTrader.Gui.Tools;
 using NinjaTrader.Data;
-using NinjaTrader.NinjaScript;
-using NinjaTrader.Core.FloatingPoint;
-using NinjaTrader.NinjaScript.Indicators.FreeOrderFlow;
+using InvestiSoft.NinjaScript.VolumeProfile;
 #endregion
 
 //This namespace holds Drawing tools in this folder and is required. Do not change it.
@@ -49,10 +39,11 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 		private int StartBar = -1;
 		private int EndBar = -1;
 		private BarsRequest BarsRequest;
-		private VolumeProfileData profile;
+		private FofVolumeProfileData profile;
 		private SharpDX.Direct2D1.Brush volumeBrushDX;
 		private SharpDX.Direct2D1.Brush buyBrushDX;
 		private SharpDX.Direct2D1.Brush sellBrushDX;
+		private SharpDX.Direct2D1.Brush totalTextBrushDX;
 		private ChartControl ChartControl;
 		private ChartBars ChartBars { get { return AttachedTo.ChartObject as ChartBars; } }
 		private bool isLoading;
@@ -63,8 +54,8 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 			base.OnStateChange();
 			if (State == State.SetDefaults)
 			{
-				Name						= "Volume Profile (Free Order Flow)";
-				Description					= @"Free Order Flow Range Volume Profile";
+				Name						= "Fixed Range Volume Profile (Free Order Flow)";
+				Description					= @"Free Order Flow fixed range volume profile";
 				AreaOpacity					= 5;
 				AreaBrush					= Brushes.Silver;
 				OutlineStroke				= new Stroke(Brushes.Gray, DashStyleHelper.Dash, 1, 50);
@@ -73,6 +64,8 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				ResolutionMode				= FofVolumeProfileResolution.Tick;
 				Resolution					= 1;
 				ValueArea					= 70;
+				DisplayTotal				= false;
+
 				// Visual
 				Width						= 60;
 				Opacity						= 40;
@@ -98,7 +91,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 		{
 			isLoading = true;
 			Bars chartBars = (AttachedTo.ChartObject as ChartBars).Bars;
-			profile = new VolumeProfileData() {
+			profile = new FofVolumeProfileData() {
 				StartBar = StartBar, EndBar = EndBar
 			};
 			var bars = (AttachedTo.ChartObject as ChartBars).Bars;
@@ -108,9 +101,11 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 				BarsRequest = null;
 			}
 
-			BarsRequest = new BarsRequest(chartBars.Instrument, StartAnchor.Time, EndAnchor.Time);
-			BarsRequest.BarsPeriod = new BarsPeriod() { BarsPeriodType = BarsPeriodType.Tick, Value = 1 };
-			BarsRequest.Request((request, errorCode, errorMessage) =>
+            BarsRequest = new BarsRequest(chartBars.Instrument, StartAnchor.Time, EndAnchor.Time)
+            {
+                BarsPeriod = new BarsPeriod() { BarsPeriodType = BarsPeriodType.Tick, Value = 1 }
+            };
+            BarsRequest.Request((request, errorCode, errorMessage) =>
 			{
 				if (request != BarsRequest || State >= State.Terminated) return;
 				if (errorCode != Cbi.ErrorCode.NoError)
@@ -136,11 +131,11 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 
 					var row = profile.AddOrUpdate(
 						close,
-						(double key) => new VolumeProfileRow() {
+						(double key) => new FofVolumeProfileRow() {
 							buy = buyVolume,
 							sell = sellVolume
 						},
-						(double key, VolumeProfileRow oldValue) => new VolumeProfileRow()
+						(double key, FofVolumeProfileRow oldValue) => new FofVolumeProfileRow()
 						{
 							buy = buyVolume + oldValue.buy,
 							sell = sellVolume + oldValue.sell
@@ -179,9 +174,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 		#region Rendering
 		public override void OnRender(ChartControl chartControl, ChartScale chartScale)
 		{
-			ChartControl = chartControl;
-
-			if(StartAnchor.SlotIndex < 0 || EndAnchor.SlotIndex < 0) return;
+            if (StartAnchor.SlotIndex < 0 || EndAnchor.SlotIndex < 0) return;
 			if(DrawingState == DrawingState.Normal) {
 				// check anchor changed
 				if(StartBar != (int) StartAnchor.SlotIndex || EndBar != (int) EndAnchor.SlotIndex) {
@@ -195,22 +188,36 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 
 			base.OnRender(chartControl, chartScale);
 
-			if(profile != null && profile.TotalVolume > 0) {
+            var volProfileRenderer = new FofVolumeProfileChartRenderer(ChartControl, chartScale, ChartBars, RenderTarget)
+            {
+                Opacity = Opacity / 100f,
+                ValueAreaOpacity = ValueAreaOpacity / 100f,
+                WidthPercent = Width / 100f
+            };
+            if (totalTextBrushDX == null)
+            {
+                totalTextBrushDX = chartControl.Properties.ChartText.ToDxBrush(RenderTarget);
+            }
+            if (profile != null && profile.TotalVolume > 0) {
 				if(DisplayMode == FofVolumeProfileMode.BuySell)
 				{
-					RenderBuySellProfile(chartScale, profile);
+                    volProfileRenderer.RenderBuySellProfile(profile, buyBrushDX, sellBrushDX);
 				}
 				else
 				{
-					RenderVolumeProfile(chartScale, profile);
+                    volProfileRenderer.RenderProfile(profile, volumeBrushDX);
 				}
-				if(ShowPoc) RenderPoc(chartScale, profile);
-				if(ShowValueArea) RenderValueArea(chartScale, profile);
-				if(DisplayMode == FofVolumeProfileMode.Delta)
-				{
-					RenderDeltaProfile(chartScale, profile);
-				}
-			}
+                if (ShowPoc) volProfileRenderer.RenderPoc(profile, PocStroke.BrushDX, PocStroke.Width, PocStroke.StrokeStyle);
+                if (ShowValueArea) volProfileRenderer.RenderValueArea(profile, ValueAreaStroke.BrushDX, ValueAreaStroke.Width, ValueAreaStroke.StrokeStyle);
+                if (DisplayMode == FofVolumeProfileMode.Delta)
+                {
+                    volProfileRenderer.RenderDeltaProfile(profile, buyBrushDX, sellBrushDX);
+                }
+                if (DisplayTotal)
+                {
+                    volProfileRenderer.RenderTotalVolume(profile, totalTextBrushDX);
+                }
+            }
 
 			if(isLoading)
 			{
@@ -226,13 +233,8 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 					(float) shapeRect.Width,
 					(float) shapeRect.Height
 				);
-				var textDxBrush = chartControl.Properties.ChartText.ToDxBrush(RenderTarget);
-				RenderTarget.DrawTextLayout(
-					new SharpDX.Vector2((float) shapeRect.X, (float) shapeRect.Y),
-					textLayout,
-					textDxBrush
-				);
-				textDxBrush.Dispose();
+				var textPos = new SharpDX.Vector2((float)shapeRect.X, (float)shapeRect.Y);
+                RenderTarget.DrawTextLayout(textPos, textLayout, totalTextBrushDX);
 			}
 		}
 
@@ -259,132 +261,13 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 			Point startPoint		= StartAnchor.GetPoint(chartControl, chartPanel, chartScale);
 			Point endPoint 			= EndAnchor.GetPoint(chartControl, chartPanel, chartScale);
 
-			//rect doesnt handle negative width/height so we need to determine and wind it up ourselves
+			// rect doesnt handle negative width/height so we need to determine and wind it up ourselves
 			// make sure to always use smallest left/top anchor for start
 			double left 	= Math.Min(endPoint.X, startPoint.X);
 			double top 		= Math.Min(endPoint.Y, startPoint.Y);
 			double width 	= Math.Abs(endPoint.X - startPoint.X);
 			double height 	= Math.Abs(endPoint.Y - startPoint.Y);
 			return new Rect(left, top, width, height);
-		}
-
-		private void RenderVolumeProfile(ChartScale chartScale, VolumeProfileData profile)
-		{
-			var volumeProfileRender = new FofVolumeProfileRender(ChartControl, chartScale, ChartBars);
-
-			foreach (KeyValuePair<double, VolumeProfileRow> row in profile)
-			{
-				var rect = volumeProfileRender.GetBarRect(profile, row.Key, row.Value.total);
-				rect.Width *= Width / 100f;
-
-				if(ShowValueArea && row.Key >= profile.VAL && row.Key <= profile.VAH)
-				{
-					volumeBrushDX.Opacity = ValueAreaOpacity / 100f;
-				}
-				else
-				{
-					volumeBrushDX.Opacity = Opacity / 100f;
-				}
-				RenderTarget.FillRectangle(rect, volumeBrushDX);
-			}
-		}
-
-		private void RenderPoc(ChartScale chartScale, VolumeProfileData profile)
-		{
-			var volumeProfileRender = new FofVolumeProfileRender(ChartControl, chartScale, ChartBars);
-
-			var rect = volumeProfileRender.GetBarRect(profile, profile.POC, profile.MaxVolume);
-			rect.Width *= Width / 100f;
-			RenderTarget.FillRectangle(rect, PocStroke.BrushDX);
-
-			rect = volumeProfileRender.GetBarRect(profile, profile.POC, profile.MaxVolume, true);
-			rect.Y += rect.Height / 2;
-			RenderTarget.DrawLine(
-				rect.TopLeft,
-				rect.TopRight,
-				PocStroke.BrushDX,
-				PocStroke.Width,
-				PocStroke.StrokeStyle
-			);
-		}
-
-		private void RenderValueArea(ChartScale chartScale, VolumeProfileData profile)
-		{
-			var volumeProfileRender = new FofVolumeProfileRender(ChartControl, chartScale, ChartBars);
-			Print(profile.VAH);
-			// draw VAH
-			if(profile.ContainsKey(profile.VAH)) {
-				var vahRect = volumeProfileRender.GetBarRect(profile, profile.VAH, profile[profile.VAH].total, true);
-				vahRect.Y += vahRect.Height / 2;
-				RenderTarget.DrawLine(
-					vahRect.TopLeft,
-					vahRect.TopRight,
-					ValueAreaStroke.BrushDX,
-					ValueAreaStroke.Width,
-					ValueAreaStroke.StrokeStyle
-				);
-			}
-			// draw VAL
-			if(profile.ContainsKey(profile.VAL)) {
-				var valRect = volumeProfileRender.GetBarRect(profile, profile.VAL, profile[profile.VAL].total, true);
-				valRect.Y += valRect.Height / 2;
-				RenderTarget.DrawLine(
-					valRect.TopLeft,
-					valRect.TopRight,
-					ValueAreaStroke.BrushDX,
-					ValueAreaStroke.Width,
-					ValueAreaStroke.StrokeStyle
-				);
-			}
-		}
-
-		private void RenderBuySellProfile(ChartScale chartScale, VolumeProfileData profile)
-		{
-			var volumeProfileRender = new FofVolumeProfileRender(ChartControl, chartScale, ChartBars);
-
-			foreach (KeyValuePair<double, VolumeProfileRow> row in profile)
-			{
-				var buyRect = volumeProfileRender.GetBarRect(profile, row.Key, row.Value.buy);
-				buyRect.Width *= Width / 100f;
-				var sellRect = volumeProfileRender.GetBarRect(profile, row.Key, row.Value.sell);
-				sellRect.Width *= Width / 100f;
-				buyRect.X = sellRect.Right;
-				if(ShowValueArea && row.Key >= profile.VAL && row.Key <= profile.VAH)
-				{
-					buyBrushDX.Opacity = ValueAreaOpacity / 100f;
-					sellBrushDX.Opacity = ValueAreaOpacity / 100f;
-				}
-				else
-				{
-					buyBrushDX.Opacity = Opacity / 100f;
-					sellBrushDX.Opacity = Opacity / 100f;
-				}
-				RenderTarget.FillRectangle(buyRect, buyBrushDX);
-				RenderTarget.FillRectangle(sellRect, sellBrushDX);
-			}
-		}
-
-		private void RenderDeltaProfile(ChartScale chartScale, VolumeProfileData profile)
-		{
-			var volumeProfileRender = new FofVolumeProfileRender(ChartControl, chartScale, ChartBars);
-
-			foreach (KeyValuePair<double, VolumeProfileRow> row in profile)
-			{
-				var volumeDelta = Math.Abs(row.Value.buy - row.Value.sell);
-				var rect = volumeProfileRender.GetBarRect(profile, row.Key, volumeDelta);
-				rect.Width *= Width / 100f;
-				if(ShowValueArea && row.Key >= profile.VAL && row.Key <= profile.VAH)
-				{
-					buyBrushDX.Opacity = ValueAreaOpacity / 100f;
-					sellBrushDX.Opacity = ValueAreaOpacity / 100f;
-				}
-				else
-				{
-					buyBrushDX.Opacity = Opacity / 100f;
-					sellBrushDX.Opacity = Opacity/ 100f;
-				}
-				RenderTarget.FillRectangle(rect, (row.Value.buy > row.Value.sell) ? buyBrushDX : sellBrushDX);
-			}
 		}
 		#endregion
 
@@ -404,7 +287,10 @@ namespace NinjaTrader.NinjaScript.DrawingTools
 		[Display(Name = "Value Area (%)", Description="Value area percentage",  Order = 7, GroupName = "Setup")]
 		public int ValueArea { get; set; }
 
-		[Display(Name = "Profile width (%)", Description="Width of bars relative to range",  Order = 1, GroupName = "Visual")]
+        [Display(Name = "Display Total Volume", Order = 8, GroupName = "Setup")]
+        public bool DisplayTotal { get; set; }
+
+        [Display(Name = "Profile width (%)", Description="Width of bars relative to range",  Order = 1, GroupName = "Visual")]
 		public int Width { get; set; }
 
 		[Range(1, 100)]

@@ -33,15 +33,15 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 		{
 			if (State == State.SetDefaults)
 			{
-				Description					= @"Free Order Flow Cumulative Delta";
-				Name						= "Cumulative Delta";
+				Description					= @"Free Order Flow Aggression Delta";
+				Name						= "Aggression Delta";
 				Calculate					= Calculate.OnEachTick;
 				DrawOnPricePanel			= false;
 				IsOverlay					= false;
 				DisplayInDataBox			= false;
 				DrawOnPricePanel			= false;
 				PaintPriceMarkers			= true;
-				ScaleJustification			= NinjaTrader.Gui.Chart.ScaleJustification.Right;
+				ScaleJustification			= ScaleJustification.Right;
 				PositiveBrush				= Brushes.Green;
 				NegativeBrush				= Brushes.Red;
 			}
@@ -51,7 +51,6 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 				AddPlot(Brushes.Gray, "Delta");
 				Plots[0].PlotStyle = PlotStyle.Bar;
 				Plots[0].AutoWidth = true;
-
 				AddDataSeries(BarsPeriodType.Tick, 1);
 			}
 		}
