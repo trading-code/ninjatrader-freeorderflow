@@ -1,6 +1,10 @@
 ﻿#region Using declarations
+using NinjaTrader.Cbi;
 using NinjaTrader.Gui.Chart;
+using NinjaTrader.NinjaScript;
+using NinjaTrader.NinjaScript.MarketAnalyzerColumns;
 using SharpDX.Direct2D1;
+using SharpDX.DirectWrite;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -14,7 +18,8 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
     {
         public long buy = 0;
         public long sell = 0;
-        public long total { get { return buy + sell; } }
+        public long other = 0;
+        public long total { get { return buy + sell + other; } }
     }
 
     internal class FofVolumeProfileData : ConcurrentDictionary<double, FofVolumeProfileRow>
@@ -26,6 +31,33 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
         public double VAH { get; set; }
         public double VAL { get; set; }
         public double POC { get; set; }
+
+        public void UpdateRow(double price, long buyVolume, long sellVolume, long otherVolume)
+        {
+            var row = AddOrUpdate(
+                price,
+                (double key) => new FofVolumeProfileRow()
+                {
+                    buy = buyVolume,
+                    sell = sellVolume,
+                    other = otherVolume
+                },
+                (double key, FofVolumeProfileRow oldValue) => new FofVolumeProfileRow()
+                {
+                    buy = buyVolume + oldValue.buy,
+                    sell = sellVolume + oldValue.sell,
+                    other = otherVolume + oldValue.other
+                }
+            );
+            // caculate POC
+            if (row.total > MaxVolume)
+            {
+                MaxVolume = row.total;
+                POC = price;
+            }
+            // calculate total volume for use in VAL and VAH
+            TotalVolume += (buyVolume + sellVolume + otherVolume);
+        }
 
         public void CalculateValueArea(float valueAreaPerc)
         {
@@ -159,7 +191,7 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
             }
         }
 
-        internal void RenderPoc(FofVolumeProfileData profile, Brush brush, float width, StrokeStyle strokeStyle)
+        internal void RenderPoc(FofVolumeProfileData profile, Brush brush, float width, StrokeStyle strokeStyle, bool drawText = false)
         {
             var pocRect = GetBarRect(profile, profile.POC, profile.MaxVolume);
             renderTarget.FillRectangle(pocRect, brush);
@@ -170,9 +202,19 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
                 pocRect.TopLeft, pocRect.TopRight,
                 brush, width, strokeStyle
             );
+            if (drawText)
+            {
+                RnederText(
+                    string.Format("{0}", profile.POC),
+                    new SharpDX.Vector2(pocRect.Left, pocRect.Top),
+                    brush,
+                    pocRect.Width,
+                    TextAlignment.Trailing
+                );
+            }
         }
 
-        internal void RenderValueArea(FofVolumeProfileData profile, Brush brush, float width, StrokeStyle strokeStyle)
+        internal void RenderValueArea(FofVolumeProfileData profile, Brush brush, float width, StrokeStyle strokeStyle, bool drawText = false)
         {
             // draw VAH
             if (profile.ContainsKey(profile.VAH))
@@ -183,6 +225,16 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
                     vahRect.TopLeft, vahRect.TopRight,
                     brush, width, strokeStyle
                 );
+                if (drawText)
+                {
+                    RnederText(
+                        string.Format("{0}", profile.VAH),
+                        new SharpDX.Vector2(vahRect.Left, vahRect.Top),
+                        brush,
+                        vahRect.Width,
+                        TextAlignment.Trailing
+                    );
+                }
             }
             // draw VAL
             if (profile.ContainsKey(profile.VAL))
@@ -193,6 +245,16 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
                     valRect.TopLeft, valRect.TopRight,
                     brush, width, strokeStyle
                 );
+                if (drawText)
+                {
+                    RnederText(
+                        string.Format("{0}", profile.VAL),
+                        new SharpDX.Vector2(valRect.Left, valRect.Top),
+                        brush,
+                        valRect.Width,
+                        TextAlignment.Trailing
+                    );
+                }
             }
         }
 
@@ -240,16 +302,30 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
             }
         }
 
+        internal void RnederText(string text, SharpDX.Vector2 position, Brush brush, float maxWidth, TextAlignment align = TextAlignment.Leading)
+        {
+            var textLayout = new TextLayout(
+                NinjaTrader.Core.Globals.DirectWriteFactory,
+                text,
+                chartControl.Properties.LabelFont.ToDirectWriteTextFormat(),
+                maxWidth,
+                30
+            );
+            textLayout.TextAlignment = align;
+            renderTarget.DrawTextLayout(position, textLayout, brush);
+        }
+
         internal void RenderTotalVolume(FofVolumeProfileData profile, Brush textBrush)
         {
+            var maxPrice = profile.Keys.Max();
+            var minPrice = profile.Keys.Min();
             var textFormat = chartControl.Properties.LabelFont.ToDirectWriteTextFormat();
             var textLayout = new SharpDX.DirectWrite.TextLayout(
                 NinjaTrader.Core.Globals.DirectWriteFactory,
-                string.Format("∑ {0}", profile.TotalVolume),
+                string.Format("∑ {0} / {1}", profile.TotalVolume, maxPrice - minPrice),
                 textFormat,
                 300, 30
             );
-            var minPrice = profile.Keys.Min();
             var barRect = GetBarRect(profile, minPrice, 0, false);
             var textPos = new SharpDX.Vector2(barRect.Left, barRect.Top);
             renderTarget.DrawTextLayout(textPos, textLayout, textBrush);
