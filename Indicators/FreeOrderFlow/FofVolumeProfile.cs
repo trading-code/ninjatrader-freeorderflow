@@ -1,16 +1,29 @@
 #region Using declarations
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Concurrent;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Xml.Serialization;
+using NinjaTrader.Cbi;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.Chart;
+using NinjaTrader.Gui.SuperDom;
+using NinjaTrader.Gui.Tools;
 using NinjaTrader.Data;
+using NinjaTrader.NinjaScript;
+using NinjaTrader.Core.FloatingPoint;
+using NinjaTrader.NinjaScript.DrawingTools;
 using InvestiSoft.NinjaScript.VolumeProfile;
 #endregion
 
+//This namespace holds Indicators in this folder and is required. Do not change it.
 namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 {
     public class FofVolumeProfile : Indicator
@@ -77,7 +90,7 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
         {
             if(BarsInProgress == 1)
             {
-                long buyVolume, sellVolume;
+                long buyVolume, sellVolume, otherVolume;
 
                 if(ResolutionMode == FofVolumeProfileResolution.Tick && Resolution == 1)
                 {
@@ -87,36 +100,19 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 
                     buyVolume = (Closes[1][0] >= ask) ? (long) Volumes[1][0] : 0;
                     sellVolume = (Closes[1][0] <= bid) ? (long) Volumes[1][0] : 0;
+                    otherVolume = (Closes[1][0] < ask && Closes[1][0] > bid) ? (long)Volumes[1][0] : 0;
                 }
                 else
                 {
                     buyVolume = Closes[1][0] > Opens[1][0] ? (long) Volumes[1][0] : 0;
                     sellVolume = Closes[1][0] < Opens[1][0] ? (long) Volumes[1][0] : 0;
+                    otherVolume = 0;
                 }
 
                 if(Profiles.Count > 0)
                 {
                     var profile = Profiles.Last();
-                    var row = profile.AddOrUpdate(
-                        Close[0],
-                        (double key) => new FofVolumeProfileRow() {
-                            buy = buyVolume,
-                            sell = sellVolume
-                        },
-                        (double key, FofVolumeProfileRow oldValue) => new FofVolumeProfileRow()
-                        {
-                            buy = buyVolume + oldValue.buy,
-                            sell = sellVolume + oldValue.sell
-                        }
-                    );
-                    // caculate POC
-                    if(row.total > profile.MaxVolume)
-                    {
-                        profile.MaxVolume = row.total;
-                        profile.POC = Close[0];
-                    }
-                    // calculate total volume for use in VAL and VAH
-                    profile.TotalVolume += (buyVolume + sellVolume);
+                    profile.UpdateRow(Closes[1][0], buyVolume, sellVolume, otherVolume);
                 }
             }
             else // BarsInProgress == 0
@@ -128,7 +124,7 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
                 if(CurrentBar == LastBar) return;
                 LastBar = CurrentBar;
 
-                Profiles.Last().EndBar = CurrentBar - 1;
+                Profiles.Last().EndBar = CurrentBar;
 
                 if(
                     Period == FofVolumeProfilePeriod.Bars ||
@@ -174,8 +170,8 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
                 {
                     volProfileRenderer.RenderProfile(profile, volumeBrushDX);
                 }
-                if(ShowPoc) volProfileRenderer.RenderPoc(profile, PocStroke.BrushDX, PocStroke.Width, PocStroke.StrokeStyle);
-                if(ShowValueArea) volProfileRenderer.RenderValueArea(profile, ValueAreaStroke.BrushDX, ValueAreaStroke.Width, ValueAreaStroke.StrokeStyle);
+                if(ShowPoc) volProfileRenderer.RenderPoc(profile, PocStroke.BrushDX, PocStroke.Width, PocStroke.StrokeStyle, DisplayTotal);
+                if(ShowValueArea) volProfileRenderer.RenderValueArea(profile, ValueAreaStroke.BrushDX, ValueAreaStroke.Width, ValueAreaStroke.StrokeStyle, DisplayTotal);
                 if(DisplayMode == FofVolumeProfileMode.Delta)
                 {
                     volProfileRenderer.RenderDeltaProfile(profile, buyBrushDX, sellBrushDX);
