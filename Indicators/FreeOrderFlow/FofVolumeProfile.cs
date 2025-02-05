@@ -40,31 +40,31 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
         {
             if (State == State.SetDefaults)
             {
-                Description                 = @"Free Order Flow Volume Profile";
-                Name                        = "Volume Profile";
-                IsChartOnly                 = true;
-                IsOverlay                   = true;
-                DisplayInDataBox            = false;
-                DrawOnPricePanel            = true;
+                Description = @"Free Order Flow Volume Profile";
+                Name = "Volume Profile";
+                IsChartOnly = true;
+                IsOverlay = true;
+                DisplayInDataBox = false;
+                DrawOnPricePanel = true;
 
                 // Setup
-                DisplayMode                 = FofVolumeProfileMode.Standard;
-                ResolutionMode              = FofVolumeProfileResolution.Tick;
-                Resolution                  = 1;
-                ValueArea                   = 70;
-                DisplayTotal                = true;
+                DisplayMode = FofVolumeProfileMode.Standard;
+                ResolutionMode = FofVolumeProfileResolution.Tick;
+                Resolution = 1;
+                ValueArea = 70;
+                DisplayTotal = true;
 
                 // Visual
-                Width                       = 60;
-                Opacity                     = 40;
-                ValueAreaOpacity            = 80;
-                ShowPoc                     = true;
-                ShowValueArea               = true;
-                VolumeBrush                 = Brushes.CornflowerBlue;
-                BuyBrush                    = Brushes.DarkCyan;
-                SellBrush                   = Brushes.MediumVioletRed;
-                PocStroke                   = new Stroke(Brushes.Goldenrod, 1);
-                ValueAreaStroke             = new Stroke(Brushes.CornflowerBlue, DashStyleHelper.Dash, 1);
+                Width = 60;
+                Opacity = 40;
+                ValueAreaOpacity = 80;
+                ShowPoc = true;
+                ShowValueArea = true;
+                VolumeBrush = Brushes.CornflowerBlue;
+                BuyBrush = Brushes.DarkCyan;
+                SellBrush = Brushes.MediumVioletRed;
+                PocStroke = new Stroke(Brushes.Goldenrod, 1);
+                ValueAreaStroke = new Stroke(Brushes.CornflowerBlue, DashStyleHelper.Dash, 1);
             }
             else if (State == State.Configure)
             {
@@ -88,28 +88,28 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
         #region Calculations
         protected override void OnBarUpdate()
         {
-            if(BarsInProgress == 1)
+            if (BarsInProgress == 1)
             {
                 long buyVolume, sellVolume, otherVolume;
 
-                if(ResolutionMode == FofVolumeProfileResolution.Tick && Resolution == 1)
+                if (ResolutionMode == FofVolumeProfileResolution.Tick && Resolution == 1)
                 {
                     // 1 tick uses bid and ask price
                     var ask = BarsArray[1].GetAsk(CurrentBar);
                     var bid = BarsArray[1].GetBid(CurrentBar);
 
-                    buyVolume = (Closes[1][0] >= ask) ? (long) Volumes[1][0] : 0;
-                    sellVolume = (Closes[1][0] <= bid) ? (long) Volumes[1][0] : 0;
+                    buyVolume = (Closes[1][0] >= ask) ? (long)Volumes[1][0] : 0;
+                    sellVolume = (Closes[1][0] <= bid) ? (long)Volumes[1][0] : 0;
                     otherVolume = (Closes[1][0] < ask && Closes[1][0] > bid) ? (long)Volumes[1][0] : 0;
                 }
                 else
                 {
-                    buyVolume = Closes[1][0] > Opens[1][0] ? (long) Volumes[1][0] : 0;
-                    sellVolume = Closes[1][0] < Opens[1][0] ? (long) Volumes[1][0] : 0;
+                    buyVolume = Closes[1][0] > Opens[1][0] ? (long)Volumes[1][0] : 0;
+                    sellVolume = Closes[1][0] < Opens[1][0] ? (long)Volumes[1][0] : 0;
                     otherVolume = 0;
                 }
 
-                if(Profiles.Count > 0)
+                if (Profiles.Count > 0)
                 {
                     var profile = Profiles.Last();
                     profile.UpdateRow(Closes[1][0], buyVolume, sellVolume, otherVolume);
@@ -117,21 +117,24 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
             }
             else // BarsInProgress == 0
             {
-                if(State == State.Realtime || IsFirstTickOfBar) {
+                if (State == State.Realtime || IsFirstTickOfBar)
+                {
                     Profiles.Last().CalculateValueArea(ValueArea / 100f);
                 }
 
-                if(CurrentBar == LastBar) return;
+                if (CurrentBar == LastBar) return;
                 LastBar = CurrentBar;
 
                 Profiles.Last().EndBar = CurrentBar;
 
-                if(
+                if (
+                    IsFirstTickOfBar &&
                     Period == FofVolumeProfilePeriod.Bars ||
                     (Period == FofVolumeProfilePeriod.Sessions && Bars.IsFirstBarOfSession)
                 )
                 {
-                    if(State != State.Realtime) {
+                    if (State != State.Realtime)
+                    {
                         Profiles.Last().CalculateValueArea(ValueArea / 100f);
                     }
                     Profiles.Add(new FofVolumeProfileData() { StartBar = CurrentBar });
@@ -162,7 +165,7 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
                     (profile.StartBar < ChartBars.FromIndex && profile.EndBar < ChartBars.FromIndex) ||
                     (profile.StartBar > ChartBars.ToIndex && profile.EndBar > ChartBars.ToIndex)
                 ) continue;
-                if(DisplayMode == FofVolumeProfileMode.BuySell)
+                if (DisplayMode == FofVolumeProfileMode.BuySell)
                 {
                     volProfileRenderer.RenderBuySellProfile(profile, buyBrushDX, sellBrushDX);
                 }
@@ -170,13 +173,14 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
                 {
                     volProfileRenderer.RenderProfile(profile, volumeBrushDX);
                 }
-                if(ShowPoc) volProfileRenderer.RenderPoc(profile, PocStroke.BrushDX, PocStroke.Width, PocStroke.StrokeStyle, DisplayTotal);
-                if(ShowValueArea) volProfileRenderer.RenderValueArea(profile, ValueAreaStroke.BrushDX, ValueAreaStroke.Width, ValueAreaStroke.StrokeStyle, DisplayTotal);
-                if(DisplayMode == FofVolumeProfileMode.Delta)
+                if (ShowPoc) volProfileRenderer.RenderPoc(profile, PocStroke.BrushDX, PocStroke.Width, PocStroke.StrokeStyle, DisplayTotal);
+                if (ShowValueArea) volProfileRenderer.RenderValueArea(profile, ValueAreaStroke.BrushDX, ValueAreaStroke.Width, ValueAreaStroke.StrokeStyle, DisplayTotal);
+                if (DisplayMode == FofVolumeProfileMode.Delta)
                 {
                     volProfileRenderer.RenderDeltaProfile(profile, buyBrushDX, sellBrushDX);
                 }
-                if(DisplayTotal) {
+                if (DisplayTotal)
+                {
                     volProfileRenderer.RenderTotalVolume(profile, totalTextBrushDX);
                 }
             }
@@ -184,10 +188,11 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 
         public override void OnRenderTargetChanged()
         {
-            if(volumeBrushDX != null) volumeBrushDX.Dispose();
-            if(buyBrushDX != null) buyBrushDX.Dispose();
-            if(sellBrushDX != null) sellBrushDX.Dispose();
-            if (RenderTarget != null) {
+            if (volumeBrushDX != null) volumeBrushDX.Dispose();
+            if (buyBrushDX != null) buyBrushDX.Dispose();
+            if (sellBrushDX != null) sellBrushDX.Dispose();
+            if (RenderTarget != null)
+            {
                 volumeBrushDX = VolumeBrush.ToDxBrush(RenderTarget);
                 buyBrushDX = BuyBrush.ToDxBrush(RenderTarget);
                 sellBrushDX = SellBrush.ToDxBrush(RenderTarget);
@@ -199,44 +204,44 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 
         #region Properties
         // Setup
-        [Display(Name = "Display mode", Description="Profile mode to render", Order = 1, GroupName = "Setup")]
+        [Display(Name = "Display mode", Description = "Profile mode to render", Order = 1, GroupName = "Setup")]
         public FofVolumeProfileMode DisplayMode { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Profile Period", Description="Calculate profile from region", Order = 1, GroupName = "Setup")]
+        [Display(Name = "Profile Period", Description = "Calculate profile from region", Order = 1, GroupName = "Setup")]
         public FofVolumeProfilePeriod Period { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Resolution Mode", Description="Calculate profile from region",  Order = 2, GroupName = "Setup")]
+        [Display(Name = "Resolution Mode", Description = "Calculate profile from region", Order = 2, GroupName = "Setup")]
         public FofVolumeProfileResolution ResolutionMode { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Resolution", Description="Calculate profile from region",  Order = 3, GroupName = "Setup")]
+        [Display(Name = "Resolution", Description = "Calculate profile from region", Order = 3, GroupName = "Setup")]
         public int Resolution { get; set; }
 
         [Range(10, 90)]
-        [Display(Name = "Value Area (%)", Description="Value area percentage",  Order = 7, GroupName = "Setup")]
+        [Display(Name = "Value Area (%)", Description = "Value area percentage", Order = 7, GroupName = "Setup")]
         public int ValueArea { get; set; }
 
         [Display(Name = "Display Total Volume", Order = 8, GroupName = "Setup")]
         public bool DisplayTotal { get; set; }
 
         // Visual
-        [Display(Name = "Profile width (%)", Description="Width of bars relative to range",  Order = 1, GroupName = "Visual")]
+        [Display(Name = "Profile width (%)", Description = "Width of bars relative to range", Order = 1, GroupName = "Visual")]
         public int Width { get; set; }
 
         [Range(1, 100)]
-        [Display(Name = "Profile opacity (%)", Description="Opacity of bars out value area",  Order = 2, GroupName = "Visual")]
+        [Display(Name = "Profile opacity (%)", Description = "Opacity of bars out value area", Order = 2, GroupName = "Visual")]
         public int Opacity { get; set; }
 
         [Range(1, 100)]
-        [Display(Name = "Value area opacity (%)", Description="Opacity of bars in value area",  Order = 2, GroupName = "Visual")]
+        [Display(Name = "Value area opacity (%)", Description = "Opacity of bars in value area", Order = 2, GroupName = "Visual")]
         public int ValueAreaOpacity { get; set; }
 
-        [Display(Name = "Show POC", Description="Show PoC line",  Order = 5, GroupName = "Setup")]
+        [Display(Name = "Show POC", Description = "Show PoC line", Order = 5, GroupName = "Setup")]
         public bool ShowPoc { get; set; }
 
-        [Display(Name = "Show Value Area", Description="Show value area high and low lines",  Order = 6, GroupName = "Setup")]
+        [Display(Name = "Show Value Area", Description = "Show value area high and low lines", Order = 6, GroupName = "Setup")]
         public bool ShowValueArea { get; set; }
 
         [XmlIgnore]
@@ -281,3 +286,60 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
         #endregion
     }
 }
+
+#region NinjaScript generated code. Neither change nor remove.
+
+namespace NinjaTrader.NinjaScript.Indicators
+{
+	public partial class Indicator : NinjaTrader.Gui.NinjaScript.IndicatorRenderBase
+	{
+		private FreeOrderFlow.FofVolumeProfile[] cacheFofVolumeProfile;
+		public FreeOrderFlow.FofVolumeProfile FofVolumeProfile(FofVolumeProfilePeriod period, FofVolumeProfileResolution resolutionMode, int resolution)
+		{
+			return FofVolumeProfile(Input, period, resolutionMode, resolution);
+		}
+
+		public FreeOrderFlow.FofVolumeProfile FofVolumeProfile(ISeries<double> input, FofVolumeProfilePeriod period, FofVolumeProfileResolution resolutionMode, int resolution)
+		{
+			if (cacheFofVolumeProfile != null)
+				for (int idx = 0; idx < cacheFofVolumeProfile.Length; idx++)
+					if (cacheFofVolumeProfile[idx] != null && cacheFofVolumeProfile[idx].Period == period && cacheFofVolumeProfile[idx].ResolutionMode == resolutionMode && cacheFofVolumeProfile[idx].Resolution == resolution && cacheFofVolumeProfile[idx].EqualsInput(input))
+						return cacheFofVolumeProfile[idx];
+			return CacheIndicator<FreeOrderFlow.FofVolumeProfile>(new FreeOrderFlow.FofVolumeProfile(){ Period = period, ResolutionMode = resolutionMode, Resolution = resolution }, input, ref cacheFofVolumeProfile);
+		}
+	}
+}
+
+namespace NinjaTrader.NinjaScript.MarketAnalyzerColumns
+{
+	public partial class MarketAnalyzerColumn : MarketAnalyzerColumnBase
+	{
+		public Indicators.FreeOrderFlow.FofVolumeProfile FofVolumeProfile(FofVolumeProfilePeriod period, FofVolumeProfileResolution resolutionMode, int resolution)
+		{
+			return indicator.FofVolumeProfile(Input, period, resolutionMode, resolution);
+		}
+
+		public Indicators.FreeOrderFlow.FofVolumeProfile FofVolumeProfile(ISeries<double> input , FofVolumeProfilePeriod period, FofVolumeProfileResolution resolutionMode, int resolution)
+		{
+			return indicator.FofVolumeProfile(input, period, resolutionMode, resolution);
+		}
+	}
+}
+
+namespace NinjaTrader.NinjaScript.Strategies
+{
+	public partial class Strategy : NinjaTrader.Gui.NinjaScript.StrategyRenderBase
+	{
+		public Indicators.FreeOrderFlow.FofVolumeProfile FofVolumeProfile(FofVolumeProfilePeriod period, FofVolumeProfileResolution resolutionMode, int resolution)
+		{
+			return indicator.FofVolumeProfile(Input, period, resolutionMode, resolution);
+		}
+
+		public Indicators.FreeOrderFlow.FofVolumeProfile FofVolumeProfile(ISeries<double> input , FofVolumeProfilePeriod period, FofVolumeProfileResolution resolutionMode, int resolution)
+		{
+			return indicator.FofVolumeProfile(input, period, resolutionMode, resolution);
+		}
+	}
+}
+
+#endregion
