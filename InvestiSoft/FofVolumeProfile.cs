@@ -158,19 +158,30 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
             ypos += halfBarDistance;
 
             // bar width and X
-            int chartBarWidth = (int)(chartControl.BarWidth + chartControl.BarMarginLeft);
+            int chartBarWidth;
             int startX = (inWindow) ? (
                 Math.Max(chartControl.GetXByBarIndex(chartBars, profile.StartBar), chartControl.CanvasLeft)
             ) : chartControl.GetXByBarIndex(chartBars, profile.StartBar);
             int endX = (inWindow) ? (
                 Math.Min(chartControl.GetXByBarIndex(chartBars, profile.EndBar), chartControl.CanvasRight)
             ) : chartControl.GetXByBarIndex(chartBars, profile.EndBar);
+            if (profile.StartBar > 0)
+            {
+                chartBarWidth = (
+                    chartControl.GetXByBarIndex(chartBars, profile.StartBar) -
+                    chartControl.GetXByBarIndex(chartBars, profile.StartBar - 1)
+                ) / 2;
+            }
+            else
+            {
+                chartBarWidth = chartControl.GetBarPaintWidth(chartBars);
+            }
             float xpos = (float)startX - chartBarWidth;
             int maxWidth = Math.Max(endX - startX, chartBarWidth);
             float barWidth = (fullwidth) ? maxWidth : (
                 maxWidth * (volume / (float)profile.MaxVolume) * WidthPercent
             );
-            return new SharpDX.RectangleF(startX, ypos, barWidth, barHeight);
+            return new SharpDX.RectangleF(xpos, ypos, barWidth, barHeight);
         }
 
         internal void RenderProfile(FofVolumeProfileData profile, Brush volumeBrush)
@@ -312,6 +323,9 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
                 30
             );
             textLayout.TextAlignment = align;
+            textLayout.WordWrapping = WordWrapping.NoWrap;
+            var textWidth = textLayout.Metrics.Width;
+            if (textWidth > maxWidth) return;
             renderTarget.DrawTextLayout(position, textLayout, brush);
         }
 
@@ -320,15 +334,22 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
             var maxPrice = profile.Keys.Max();
             var minPrice = profile.Keys.Min();
             var textFormat = chartControl.Properties.LabelFont.ToDirectWriteTextFormat();
-            var textLayout = new SharpDX.DirectWrite.TextLayout(
+            textFormat.WordWrapping = WordWrapping.NoWrap;
+            var textLayout = new TextLayout(
                 NinjaTrader.Core.Globals.DirectWriteFactory,
                 string.Format("∑ {0} / {1}", profile.TotalVolume, maxPrice - minPrice),
                 textFormat,
-                300, 30
+                300,
+                textFormat.FontSize + 4
             );
             var barRect = GetBarRect(profile, minPrice, 0, false);
-            var textPos = new SharpDX.Vector2(barRect.Left, barRect.Top);
-            renderTarget.DrawTextLayout(textPos, textLayout, textBrush);
+            RnederText(
+                string.Format("∑ {0} / {1}", profile.TotalVolume, maxPrice - minPrice),
+                new SharpDX.Vector2(barRect.Left, barRect.Top),
+                textBrush,
+                barRect.Width,
+                TextAlignment.Leading
+            );
         }
     }
     #endregion
