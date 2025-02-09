@@ -88,6 +88,7 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
         #region Calculations
         protected override void OnBarUpdate()
         {
+            var profile = Profiles.Last();
             if (BarsInProgress == 1)
             {
                 long buyVolume, sellVolume, otherVolume;
@@ -109,35 +110,31 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
                     otherVolume = 0;
                 }
 
-                if (Profiles.Count > 0)
-                {
-                    var profile = Profiles.Last();
-                    profile.UpdateRow(Closes[1][0], buyVolume, sellVolume, otherVolume);
-                }
+                profile.UpdateRow(Closes[1][0], buyVolume, sellVolume, otherVolume);
             }
             else // BarsInProgress == 0
             {
                 if (State == State.Realtime || IsFirstTickOfBar)
                 {
-                    Profiles.Last().CalculateValueArea(ValueArea / 100f);
+                    profile.CalculateValueArea(ValueArea / 100f);
                 }
 
-                if (CurrentBar == LastBar) return;
-                LastBar = CurrentBar;
-
-                Profiles.Last().EndBar = CurrentBar;
+                // update profile end bar
+                if (CurrentBar == profile.EndBar) return;
+                profile.EndBar = CurrentBar;
 
                 if (
                     IsFirstTickOfBar &&
-                    Period == FofVolumeProfilePeriod.Bars ||
-                    (Period == FofVolumeProfilePeriod.Sessions && Bars.IsFirstBarOfSession)
+                    (Period == FofVolumeProfilePeriod.Bars ||
+                    (Period == FofVolumeProfilePeriod.Sessions && Bars.IsFirstBarOfSession))
                 )
                 {
+                    // on new bar fisrt tick or new session first tick
                     if (State != State.Realtime)
                     {
-                        Profiles.Last().CalculateValueArea(ValueArea / 100f);
+                        profile.CalculateValueArea(ValueArea / 100f);
                     }
-                    Profiles.Add(new FofVolumeProfileData() { StartBar = CurrentBar });
+                    Profiles.Add(new FofVolumeProfileData() { StartBar = CurrentBar, EndBar = CurrentBar });
                 }
             }
         }
@@ -153,11 +150,7 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
                 ValueAreaOpacity = ValueAreaOpacity / 100f,
                 WidthPercent = Width / 100f
             };
-
-            if (totalTextBrushDX == null)
-            {
-                totalTextBrushDX = chartControl.Properties.ChartText.ToDxBrush(RenderTarget);
-            }
+            totalTextBrushDX = chartControl.Properties.ChartText.ToDxBrush(RenderTarget);
             foreach (var profile in Profiles)
             {
                 if (
@@ -221,7 +214,7 @@ namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 
         [Range(10, 90)]
         [Display(Name = "Value Area (%)", Description = "Value area percentage", Order = 7, GroupName = "Setup")]
-        public int ValueArea { get; set; }
+        public float ValueArea { get; set; }
 
         [Display(Name = "Display Total Volume", Order = 8, GroupName = "Setup")]
         public bool DisplayTotal { get; set; }

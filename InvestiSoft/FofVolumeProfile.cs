@@ -9,6 +9,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Forms;
 #endregion
 
 namespace InvestiSoft.NinjaScript.VolumeProfile
@@ -20,6 +21,11 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
         public long sell = 0;
         public long other = 0;
         public long total { get { return buy + sell + other; } }
+
+        public string toString()
+        {
+            return string.Format("<VolumeProfileRow buy={0} sell={1}>", buy, sell);
+        }
     }
 
     internal class FofVolumeProfileData : ConcurrentDictionary<double, FofVolumeProfileRow>
@@ -32,7 +38,7 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
         public double VAL { get; set; }
         public double POC { get; set; }
 
-        public void UpdateRow(double price, long buyVolume, long sellVolume, long otherVolume)
+        public FofVolumeProfileRow UpdateRow(double price, long buyVolume, long sellVolume, long otherVolume)
         {
             var row = AddOrUpdate(
                 price,
@@ -57,6 +63,7 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
             }
             // calculate total volume for use in VAL and VAH
             TotalVolume += (buyVolume + sellVolume + otherVolume);
+            return row;
         }
 
         public void CalculateValueArea(float valueAreaPerc)
@@ -156,7 +163,6 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
             // center bar on price tick
             int halfBarDistance = (int)Math.Max(1, chartScale.GetPixelsForDistance(tickSize)) / 2; //pixels
             ypos += halfBarDistance;
-
             // bar width and X
             int chartBarWidth;
             int startX = (inWindow) ? (
@@ -176,7 +182,7 @@ namespace InvestiSoft.NinjaScript.VolumeProfile
             {
                 chartBarWidth = chartControl.GetBarPaintWidth(chartBars);
             }
-            float xpos = (float)startX - chartBarWidth;
+            float xpos = startX;
             int maxWidth = Math.Max(endX - startX, chartBarWidth);
             float barWidth = (fullwidth) ? maxWidth : (
                 maxWidth * (volume / (float)profile.MaxVolume) * WidthPercent
