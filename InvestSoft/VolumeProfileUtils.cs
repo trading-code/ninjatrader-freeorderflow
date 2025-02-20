@@ -9,10 +9,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows.Forms;
 #endregion
 
-namespace InvestiSoft.NinjaScript.VolumeProfile
+namespace InvestSoft.NinjaScript.VolumeProfile
 {
     #region Data
     internal class FofVolumeProfileRow

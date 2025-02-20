@@ -11,7 +11,7 @@ using Brush = System.Windows.Media.Brush;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.Chart;
 using NinjaTrader.Data;
-using InvestiSoft.NinjaScript.VolumeProfile;
+using InvestSoft.NinjaScript.VolumeProfile;
 #endregion
 
 //This namespace holds Drawing tools in this folder and is required. Do not change it.

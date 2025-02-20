@@ -20,7 +20,7 @@ using NinjaTrader.Data;
 using NinjaTrader.NinjaScript;
 using NinjaTrader.Core.FloatingPoint;
 using NinjaTrader.NinjaScript.DrawingTools;
-using InvestiSoft.NinjaScript.VolumeProfile;
+using InvestSoft.NinjaScript.VolumeProfile;
 #endregion
 
 //This namespace holds Indicators in this folder and is required. Do not change it.

@@ -99,6 +99,6 @@
 		<Compile Include="Indicators\FreeOrderFlow\FofMarketDepth.cs" />
 		<Compile Include="Indicators\FreeOrderFlow\FofVolumeProfile.cs" />
 		<Compile Include="Indicators\FreeOrderFlow\FofVWAP.cs" />
-		<Compile Include="InvestiSoft\FofVolumeProfile.cs" />
+		<Compile Include="InvestSoft\VolumeProfileUtils.cs" />
 	</ItemGroup>
 </Project>
