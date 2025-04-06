@@ -37,6 +37,8 @@ namespace NinjaTrader.NinjaScript.DrawingTools
         }
         #endregion
 
+        private ChartAnchor firstAnchor;
+        private ChartAnchor lastAnchor;
         private double MaxPrice;
         private double MinPrice;
         private int StartBar = -1;
@@ -50,6 +52,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
         private ChartControl ChartControl;
         private ChartBars ChartBars { get { return AttachedTo.ChartObject as ChartBars; } }
         private bool isLoading;
+        private string loadingMessage = "Loading...";
 
         #region OnStateChange
         protected override void OnStateChange()
@@ -90,7 +93,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
         #endregion
 
         #region Calculation
-        private void CaculateVolumeProfile(ChartControl chartControl, ChartScale chartScale)
+        private void CaculateVolumeProfile()
         {
             isLoading = true;
             Bars chartBars = (AttachedTo.ChartObject as ChartBars).Bars;
@@ -105,13 +108,21 @@ namespace NinjaTrader.NinjaScript.DrawingTools
             {
                 BarsRequest = null;
             }
-
-            BarsRequest = new BarsRequest(chartBars.Instrument, StartAnchor.Time, EndAnchor.Time)
+            BarsRequest = new BarsRequest(
+                chartBars.Instrument,
+                firstAnchor.Time,
+                lastAnchor.Time
+            )
             {
-                BarsPeriod = new BarsPeriod() { BarsPeriodType = BarsPeriodType.Tick, Value = 1 }
+                BarsPeriod = new BarsPeriod()
+                {
+                    BarsPeriodType = BarsPeriodType.Tick,
+                    Value = 1
+                }
             };
             BarsRequest.Request((request, errorCode, errorMessage) =>
             {
+                loadingMessage = "Calculating...";
                 if (request != BarsRequest || State >= State.Terminated) return;
                 if (errorCode != Cbi.ErrorCode.NoError)
                 {
@@ -123,8 +134,8 @@ namespace NinjaTrader.NinjaScript.DrawingTools
                 for (int i = 0; i < request.Bars.Count; i++)
                 {
                     if (
-                        request.Bars.BarsSeries.GetTime(i) < StartAnchor.Time ||
-                        request.Bars.BarsSeries.GetTime(i) > EndAnchor.Time
+                        request.Bars.BarsSeries.GetTime(i) < firstAnchor.Time ||
+                        request.Bars.BarsSeries.GetTime(i) > lastAnchor.Time
                     ) continue;
                     double ask = request.Bars.BarsSeries.GetAsk(i);
                     double bid = request.Bars.BarsSeries.GetBid(i);
@@ -165,14 +176,25 @@ namespace NinjaTrader.NinjaScript.DrawingTools
             if (StartAnchor.SlotIndex < 0 || EndAnchor.SlotIndex < 0) return;
             if (DrawingState == DrawingState.Normal)
             {
-                // check anchor changed
-                if (StartBar != (int)StartAnchor.SlotIndex || EndBar != (int)EndAnchor.SlotIndex)
+                // set real anchor sequence
+                if (StartAnchor.SlotIndex > EndAnchor.SlotIndex)
                 {
-                    StartBar = (int)Math.Min(StartAnchor.SlotIndex, EndAnchor.SlotIndex);
-                    EndBar = (int)Math.Max(StartAnchor.SlotIndex, EndAnchor.SlotIndex);
+                    firstAnchor = EndAnchor;
+                    lastAnchor = StartAnchor;
+                }
+                else
+                {
+                    firstAnchor = StartAnchor;
+                    lastAnchor = EndAnchor;
+                }
+                // check anchor changed
+                if (StartBar != firstAnchor.SlotIndex || EndBar != lastAnchor.SlotIndex)
+                {
+                    StartBar = (int) firstAnchor.SlotIndex;
+                    EndBar = (int) lastAnchor.SlotIndex;
                     if (EndBar >= ChartBars.Count - 1) EndBar = ChartBars.Count - 1;
                     CalcAnchorPrice();
-                    CaculateVolumeProfile(chartControl, chartScale);
+                    CaculateVolumeProfile();
                 }
             }
             base.OnRender(chartControl, chartScale);
@@ -214,7 +236,7 @@ namespace NinjaTrader.NinjaScript.DrawingTools
                 textFormat.ParagraphAlignment = SharpDX.DirectWrite.ParagraphAlignment.Center;
                 var textLayout = new SharpDX.DirectWrite.TextLayout(
                     Core.Globals.DirectWriteFactory,
-                    "Calculating",
+                    loadingMessage,
                     textFormat,
                     (float)shapeRect.Width,
                     (float)shapeRect.Height
