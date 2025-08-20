@@ -24,7 +24,7 @@ using NinjaTrader.NinjaScript.DrawingTools;
 //This namespace holds Indicators in this folder and is required. Do not change it.
 namespace NinjaTrader.NinjaScript.Indicators.FreeOrderFlow
 {
-	public class FofCumulativeDelta : Indicator
+	public class FofAggressionDelta : Indicator
 	{
 		private double buys;
 		private double sells;
